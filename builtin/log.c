@@ -1497,6 +1497,7 @@ int cmd_format_patch(int argc, const char **argv, const char *prefix)
 	struct strbuf rdiff1 = STRBUF_INIT;
 	struct strbuf rdiff2 = STRBUF_INIT;
 	struct strbuf rdiff_title = STRBUF_INIT;
+	int creation_factor = -1;
 
 	const struct option builtin_format_patch_options[] = {
 		{ OPTION_CALLBACK, 'n', "numbered", &numbered, NULL,
@@ -1575,6 +1576,8 @@ int cmd_format_patch(int argc, const char **argv, const char *prefix)
 			     parse_opt_object_name),
 		OPT_STRING(0, "range-diff", &rdiff_prev, N_("refspec"),
 			   N_("show changes against <refspec> in cover letter")),
+		OPT_INTEGER(0, "creation-factor", &creation_factor,
+			    N_("percentage by which creation is weighted")),
 		OPT_END()
 	};
 
@@ -1807,6 +1810,11 @@ int cmd_format_patch(int argc, const char **argv, const char *prefix)
 					     _("Interdiff against v%d:"));
 	}
 
+	if (creation_factor < 0)
+		creation_factor = RANGE_DIFF_CREATION_FACTOR_DEFAULT;
+	else if (!rdiff_prev)
+		die(_("--creation-factor requires --range-diff"));
+
 	if (rdiff_prev) {
 		if (!cover_letter)
 			die(_("--range-diff requires --cover-letter"));
@@ -1815,7 +1823,7 @@ int cmd_format_patch(int argc, const char **argv, const char *prefix)
 					origin, list[0]);
 		rev.rdiff1 = rdiff1.buf;
 		rev.rdiff2 = rdiff2.buf;
-		rev.creation_factor = RANGE_DIFF_CREATION_FACTOR_DEFAULT;
+		rev.creation_factor = creation_factor;
 		rev.rdiff_title = diff_title(&rdiff_title, reroll_count,
 					     _("Range-diff:"),
 					     _("Range-diff against v%d:"));
