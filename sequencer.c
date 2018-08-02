@@ -701,57 +701,59 @@ static char *get_author(const char *message)
 }
 
 /* Read author-script and return an ident line (author <email> timestamp) */
-static const char *read_author_ident(struct strbuf *buf)
+static int read_author_ident(char **author)
 {
 	const char *keys[] = {
 		"GIT_AUTHOR_NAME=", "GIT_AUTHOR_EMAIL=", "GIT_AUTHOR_DATE="
 	};
+	struct strbuf buf = STRBUF_INIT;
 	struct strbuf out = STRBUF_INIT;
 	char *in, *eol;
 	const char *val[3];
 	int i = 0;
 
-	if (strbuf_read_file(buf, rebase_path_author_script(), 256) <= 0)
-		return NULL;
+	if (strbuf_read_file(&buf, rebase_path_author_script(), 256) <= 0) {
+		strbuf_release(&buf);
+		return -1;
+	}
 
-	/* dequote values and construct ident line in-place */
-	for (in = buf->buf; i < 3 && in - buf->buf < buf->len; i++) {
+	for (in = buf.buf; i < 3 && in - buf.buf < buf.len; i++) {
 		if (!skip_prefix(in, keys[i], (const char **)&in)) {
-			warning("could not parse '%s' (looking for '%s'",
-				rebase_path_author_script(), keys[i]);
-			return NULL;
+			strbuf_release(&buf);
+			return error(_("could not parse '%s' (looking for '%s')"),
+				       rebase_path_author_script(), keys[i]);
 		}
-
 		eol = strchrnul(in, '\n');
 		*eol = '\0';
 		if (!sq_dequote(in)) {
-			warning(_("bad quoting on %s value in '%s'"),
-				keys[i], rebase_path_author_script());
-			return NULL;
+			strbuf_release(&buf);
+			return error(_("bad quoting on %s value in '%s'"),
+				     keys[i], rebase_path_author_script());
 		}
 		val[i] = in;
 		in = eol + 1;
 	}
 
 	if (i < 3) {
-		warning("could not parse '%s' (looking for '%s')",
-			rebase_path_author_script(), keys[i]);
-		return NULL;
+		strbuf_release(&buf);
+		return error(_("could not parse '%s' (looking for '%s')"),
+			     rebase_path_author_script(), keys[i]);
 	}
 
 	/* validate date since fmt_ident() will die() on bad value */
 	if (parse_date(val[2], &out)){
-		warning(_("invalid date format '%s' in '%s'"),
+		error(_("invalid date format '%s' in '%s'"),
 			val[2], rebase_path_author_script());
 		strbuf_release(&out);
-		return NULL;
+		strbuf_release(&buf);
+		return -1;
 	}
 
 	strbuf_reset(&out);
 	strbuf_addstr(&out, fmt_ident(val[0], val[1], val[2], 0));
-	strbuf_swap(buf, &out);
-	strbuf_release(&out);
-	return buf->buf;
+	*author = strbuf_detach(&out, NULL);
+	strbuf_release(&buf);
+	return 0;
 }
 
 static const char staged_changes_advice[] =
@@ -794,11 +796,13 @@ static int run_git_commit(const char *defmsg, struct replay_opts *opts,
 	const char *value;
 
 	if ((flags & CREATE_ROOT_COMMIT) && !(flags & AMEND_MSG)) {
-		struct strbuf msg = STRBUF_INIT, script = STRBUF_INIT;
-		const char *author = is_rebase_i(opts) ?
-			read_author_ident(&script) : NULL;
+		struct strbuf msg = STRBUF_INIT;
+		char *author = NULL;
 		struct object_id root_commit, *cache_tree_oid;
 		int res = 0;
+
+		if (is_rebase_i(opts) && read_author_ident(&author))
+			return -1;
 
 		if (!defmsg)
 			BUG("root commit without message");
@@ -817,7 +821,7 @@ static int run_git_commit(const char *defmsg, struct replay_opts *opts,
 					  opts->gpg_sign);
 
 		strbuf_release(&msg);
-		strbuf_release(&script);
+		free(author);
 		if (!res) {
 			update_ref(NULL, "CHERRY_PICK_HEAD", &root_commit, NULL,
 				   REF_NO_DEREF, UPDATE_REFS_MSG_ON_ERR);
