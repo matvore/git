@@ -75,6 +75,7 @@ test_expect_success 'rebase --keep-empty' '
 	test_line_count = 6 actual
 '
 
+SQ="'"
 test_expect_success 'rebase -i with the exec command' '
 	git checkout master &&
 	(
@@ -1361,7 +1362,6 @@ test_expect_success 'editor saves as CR/LF' '
 	)
 '
 
-SQ="'"
 test_expect_success 'rebase -i --gpg-sign=<key-id>' '
 	test_when_finished "test_might_fail git rebase --abort" &&
 	set_fake_editor &&
@@ -1382,9 +1382,21 @@ test_expect_success 'rebase -i --gpg-sign=<key-id> overrides commit.gpgSign' '
 test_expect_success 'valid author header after --root swap' '
 	rebase_setup_and_clean author-header no-conflict-branch &&
 	set_fake_editor &&
-	FAKE_LINES="2 1" git rebase -i --root &&
-	git cat-file commit HEAD^ >out &&
-	grep "^author ..*> [0-9][0-9]* [-+][0-9][0-9][0-9][0-9]$" out
+	git commit --amend --author="Au ${SQ}thor <author@example.com>" --no-edit &&
+	git cat-file commit HEAD | grep ^author >expected &&
+	FAKE_LINES="5 1" git rebase -i --root &&
+	git cat-file commit HEAD^ | grep ^author >actual &&
+	test_cmp expected actual
+'
+
+test_expect_success 'valid author header when author contains single quote' '
+	rebase_setup_and_clean author-header no-conflict-branch &&
+	set_fake_editor &&
+	git commit --amend --author="Au ${SQ}thor <author@example.com>" --no-edit &&
+	git cat-file commit HEAD | grep ^author >expected &&
+	FAKE_LINES="1 5" git rebase -i --root &&
+	git cat-file commit HEAD | grep ^author >actual &&
+	test_cmp expected actual
 '
 
 test_done

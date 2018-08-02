@@ -34,6 +34,7 @@ struct replay_opts {
 	int keep_redundant_commits;
 	int verbose;
 
+	int version;
 	int mainline;
 
 	char *gpg_sign;
