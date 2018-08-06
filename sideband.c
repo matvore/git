@@ -72,7 +72,6 @@ static void maybe_colorize_sideband(struct strbuf *dest, const char *src, int n)
 
 	if (!want_color_stderr(use_sideband_colors())) {
 		strbuf_add(dest, src, n);
-		fprintf(stderr, "added: '%s'\n", dest->buf);
 		return;
 	}
 
@@ -204,7 +203,6 @@ int recv_sideband(const char *me, int in_stream, int out)
 	}
 
 	if (outbuf.len) {
-		fprintf(stderr, "last bit '%s'\n", outbuf.buf);
 		strbuf_addch(&outbuf, '\n');
 		xwrite(2, outbuf.buf, outbuf.len);
 	}
