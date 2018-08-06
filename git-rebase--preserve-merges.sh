@@ -853,7 +853,7 @@ init_basic_state () {
 	mkdir -p "$state_dir" || die "$(eval_gettext "Could not create temporary \$state_dir")"
 	rm -f "$(git rev-parse --git-path REBASE_HEAD)"
 
-	: > "$state_dir"/interactive || die "$(gettext "Could not mark as interactive")"
+	echo 1 > "$state_dir"/interactive || die "$(gettext "Could not mark as interactive")"
 	write_basic_state
 }
 
