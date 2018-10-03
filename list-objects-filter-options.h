@@ -44,6 +44,7 @@ struct list_objects_filter_options {
 	struct object_id *sparse_oid_value;
 	char *sparse_path_value;
 	unsigned long blob_limit_value;
+	unsigned long tree_depth_limit_value;
 };
 
 /* Normalized command line arguments */

@@ -83,53 +83,80 @@ static void *filter_blobs_none__init(
  * A filter for list-objects to omit ALL trees and blobs from the traversal.
  * Can OPTIONALLY collect a list of the omitted OIDs.
  */
-struct filter_trees_none_data {
+struct filter_trees_depth_data {
 	struct oidset *omits;
+	unsigned long max_depth;
+	unsigned long current_depth;
 };
 
-static enum list_objects_filter_result filter_trees_none(
+static enum list_objects_filter_result filter_trees_depth(
 	enum list_objects_filter_situation filter_situation,
 	struct object *obj,
 	const char *pathname,
 	const char *filename,
 	void *filter_data_)
 {
-	struct filter_trees_none_data *filter_data = filter_data_;
+	struct filter_trees_depth_data *filter_data = filter_data_;
+
+	int too_deep = filter_data->current_depth >= filter_data->max_depth;
+
+	/*
+	 * Note that we do not use _MARK_SEEN in order to allow re-traversal in
+	 * case we encounter a tree or blob again at a shallower depth.
+	 */
 
 	switch (filter_situation) {
 	default:
 		BUG("unknown filter_situation: %d", filter_situation);
 
-	case LOFS_BEGIN_TREE:
 	case LOFS_BLOB:
+		if (!too_deep) goto include_it;
+
+		if (filter_data->omits)
+			oidset_insert(filter_data->omits, &obj->oid);
+
+		return LOFR_ZERO;
+
+	case LOFS_BEGIN_TREE:
+		filter_data->current_depth++;
+
+		if (!too_deep) goto include_it;
+
 		if (filter_data->omits) {
 			oidset_insert(filter_data->omits, &obj->oid);
-			/* _MARK_SEEN but not _DO_SHOW (hard omit) */
-			return LOFR_MARK_SEEN;
+			return LOFR_ZERO;
 		} else {
 			/*
 			 * Not collecting omits so no need to to traverse tree.
 			 */
-			return LOFR_SKIP_TREE | LOFR_MARK_SEEN;
+			return LOFR_SKIP_TREE;
 		}
 
 	case LOFS_END_TREE:
 		assert(obj->type == OBJ_TREE);
+		filter_data->current_depth--;
 		return LOFR_ZERO;
 
 	}
+
+include_it:
+	if (filter_data->omits)
+		oidset_remove(filter_data->omits, &obj->oid);
+	return LOFR_MARK_SEEN | LOFR_DO_SHOW;
 }
 
-static void* filter_trees_none__init(
+static void* filter_trees_depth__init(
 	struct oidset *omitted,
 	struct list_objects_filter_options *filter_options,
 	filter_object_fn *filter_fn,
 	filter_free_fn *filter_free_fn)
 {
-	struct filter_trees_none_data *d = xcalloc(1, sizeof(*d));
+	struct filter_trees_depth_data *d = xcalloc(1, sizeof(*d));
 	d->omits = omitted;
+	d->max_depth = filter_options->tree_depth_limit_value;
+	d->current_depth = 0;
 
-	*filter_fn = filter_trees_none;
+	*filter_fn = filter_trees_depth;
 	*filter_free_fn = free;
 	return d;
 }
@@ -426,7 +453,7 @@ static filter_init_fn s_filters[] = {
 	NULL,
 	filter_blobs_none__init,
 	filter_blobs_limit__init,
-	filter_trees_none__init,
+	filter_trees_depth__init,
 	filter_sparse_oid__init,
 	filter_sparse_path__init,
 };

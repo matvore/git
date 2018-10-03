@@ -734,8 +734,12 @@ specification contained in <path>.
 +
 The form '--filter=tree:<depth>' omits all blobs and trees whose depth
 from the root tree is >= <depth> (minimum depth if an object is located
-at multiple depths in the commits traversed). Currently, only <depth>=0
-is supported, which omits all blobs and trees.
+at multiple depths in the commits traversed). <depth>=0 will not include
+any trees or blobs unless included explicitly in <object>. <depth>=1
+will include only the tree and blobs which are referenced directly by a
+commit reachable from <object> or an object given in <object>. <depth>=2
+is like <depth>=1 while also including trees and blobs one more level
+removed from <object> or a reachable commit.
 
 --no-filter::
 	Turn off any previous `--filter=` argument.
