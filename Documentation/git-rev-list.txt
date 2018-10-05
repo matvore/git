@@ -60,20 +60,23 @@ SYNOPSIS
 	     [ --no-walk ] [ --do-walk ]
 	     [ --count ]
 	     [ --use-bitmap-index ]
-	     <commit>... [ \-- <paths>... ]
+	     <object>... [ \-- <paths>... ]
 
 DESCRIPTION
 -----------
 
-List commits that are reachable by following the `parent` links from the
-given commit(s), but exclude commits that are reachable from the one(s)
-given with a '{caret}' in front of them.  The output is given in reverse
-chronological order by default.
+List objects that are reachable by following references from the given
+object(s), but exclude objects that are reachable from the one(s) given
+with a '{caret}' in front of them.
 
-You can think of this as a set operation.  Commits given on the command
-line form a set of commits that are reachable from any of them, and then
-commits reachable from any of the ones given with '{caret}' in front are
-subtracted from that set.  The remaining commits are what comes out in the
+By default, only commit objects are shown, and the commits are shown in
+reverse chronological order. The '--object' flag causes non-commit objects
+to also be shown.
+
+You can think of this as a set operation.  Objects given on the command
+line form a set of objects that are reachable from any of them, and then
+objects reachable from any of the ones given with '{caret}' in front are
+subtracted from that set.  The remaining objects are what come out in the
 command's output.  Various other options and paths parameters can be used
 to further limit the result.
 
