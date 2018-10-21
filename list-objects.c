@@ -241,19 +241,21 @@ void mark_edges_uninteresting(struct rev_info *revs, show_edge_fn show_edge)
 		}
 		mark_edge_parents_uninteresting(commit, revs, show_edge);
 	}
-	if (revs->edge_hint_aggressive) {
-		for (i = 0; i < revs->cmdline.nr; i++) {
-			struct object *obj = revs->cmdline.rev[i].item;
-			struct commit *commit = (struct commit *)obj;
-			if (!obj || obj->type != OBJ_COMMIT ||
-			    !(obj->flags & UNINTERESTING))
-				continue;
-			mark_tree_uninteresting(revs->repo,
-						get_commit_tree(commit));
-			if (!(obj->flags & SHOWN)) {
-				obj->flags |= SHOWN;
-				show_edge(commit);
-			}
+
+	if (!revs->edge_hint_aggressive && !revs->blob_objects)
+		return;
+
+	for (i = 0; i < revs->cmdline.nr; i++) {
+		struct object *obj = revs->cmdline.rev[i].item;
+		struct commit *commit = (struct commit *)obj;
+		if (!obj || obj->type != OBJ_COMMIT ||
+		    !(obj->flags & UNINTERESTING))
+			continue;
+		mark_tree_uninteresting(revs->repo,
+					get_commit_tree(commit));
+		if (revs->edge_hint_aggressive && !(obj->flags & SHOWN)) {
+			obj->flags |= SHOWN;
+			show_edge(commit);
 		}
 	}
 }
